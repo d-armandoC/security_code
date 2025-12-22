@@ -4,5 +4,5 @@ import com.registro.registro.Model.Persona;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface IPersonaDao extends JpaRepository<Persona,Long> {
-// boolean existsByCedula(String cedula);
+ boolean existsByCedula(String cedula);
 }

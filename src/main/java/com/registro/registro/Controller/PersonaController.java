@@ -2,103 +2,103 @@ package com.registro.registro.Controller;
 
 import com.registro.registro.Model.Persona;
 import com.registro.registro.Service.IPersonaService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.registro.registro.dto.request.PersonaRequestDTO;
+import com.registro.registro.dto.response.PersonaResponseDTO;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import static java.util.stream.Collectors.toList;
 
-@CrossOrigin(origins = {"${frontend.url}"})
 @RestController
 @RequestMapping("/api")
-@Validated // <-- habilita validación también en path variables, etc.
+@Validated
 public class PersonaController {
 
-    @Autowired
-    public IPersonaService personaService;
+    private final IPersonaService personaService;
 
-    // =========================
-    //  LISTAR (Lectura general)
-    // =========================
-    @PreAuthorize("hasAnyRole('ADMIN','USER')")  // Autorización a nivel de método
+    public PersonaController(IPersonaService personaService) {
+        this.personaService = personaService;
+    }
+
     @GetMapping("/persona")
-    public ResponseEntity<List<Persona>> listarPersonas() {
-        List<Persona> personas = personaService.findAll();
-        return ResponseEntity.ok(personas);
+    public ResponseEntity<List<PersonaResponseDTO>> listarPersonas() {
+        List<PersonaResponseDTO> out = personaService.findAll()
+                .stream()
+                .map(this::toResponse)
+                .collect(toList());
+        return ResponseEntity.ok(out);
     }
 
-    // =========================
-    //  CONSULTAR POR ID
-    // =========================
-    @PreAuthorize("hasAnyRole('ADMIN','USER')")
     @GetMapping("/persona/{id}")
-    public ResponseEntity<Persona> personaById(
-            @PathVariable @Min(1) Long id) { // Validación simple del ID
+    public ResponseEntity<PersonaResponseDTO> personaById(@PathVariable @Min(1) Long id) {
         Persona persona = personaService.findById(id);
-        if (persona == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(persona);
+        if (persona == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(toResponse(persona));
     }
 
-    // =========================
-    //  CREAR
-    // =========================
-    @PreAuthorize("hasRole('ADMIN')")  // solo ADMIN puede crear
     @PostMapping("/persona")
-    public ResponseEntity<Persona> crear(@Valid @RequestBody Persona persona) {
-        try {
-            // @Valid aplica las restricciones definidas en la entidad Persona
-            Persona createdPersona = personaService.save(persona);
-            return new ResponseEntity<>(createdPersona, HttpStatus.CREATED);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        }
-    }
-    // =========================
-    //  ACTUALIZAR
-    // =========================
-    @PreAuthorize("hasRole('ADMIN')") // puedes adaptar la expresión según tu modelo de usuarios
-    @PutMapping("/persona/{id}")
-    public ResponseEntity<Persona> actualizar(
-            @Valid @RequestBody Persona persona, // validamos también los nuevos datos
-            @PathVariable @Min(1) Long id) {
-        Persona personaActualizar = personaService.findById(id);
-        if (personaActualizar == null) {
-            return ResponseEntity.notFound().build();
-        }
-        // Actualización controlada campo a campo (evita problemas de sobre-escritura masiva)
-        personaActualizar.setNombre(persona.getNombre());
-        personaActualizar.setApellido(persona.getApellido());
-        personaActualizar.setEmail(persona.getEmail());
-        personaActualizar.setCelular(persona.getCelular());
-        personaActualizar.setCedula(persona.getCedula());
-        personaActualizar.setCarrera(persona.getCarrera());
-        personaActualizar.setInsti(persona.getInsti());
-        Persona personaGuardada = personaService.save(personaActualizar);
-        return ResponseEntity.ok(personaGuardada);
+    public ResponseEntity<PersonaResponseDTO> crear(@Valid @RequestBody PersonaRequestDTO dto) {
+        Persona persona = toEntity(dto);
+        Persona created = personaService.save(persona);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
     }
 
-    // =========================
-    //  ELIMINAR
-    // =========================
-    @PreAuthorize("hasRole('ADMIN')")  // solo ADMIN puede eliminar
+    @PutMapping("/persona/{id}")
+    public ResponseEntity<PersonaResponseDTO> actualizar(@PathVariable @Min(1) Long id,
+                                                        @Valid @RequestBody PersonaRequestDTO dto) {
+
+        Persona existente = personaService.findById(id);
+        if (existente == null) return ResponseEntity.notFound().build();
+
+        existente.setNombre(dto.getNombre());
+        existente.setApellido(dto.getApellido());
+        existente.setCedula(dto.getCedula());
+        existente.setEmail(dto.getEmail());
+        existente.setCelular(dto.getCelular());
+        existente.setCarrera(dto.getCarrera());
+        existente.setInsti(dto.getInsti());
+
+        Persona guardada = personaService.save(existente);
+        return ResponseEntity.ok(toResponse(guardada));
+    }
+
     @DeleteMapping("/persona/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable @Min(1) Long id) {
         Persona persona = personaService.findById(id);
-        if (persona == null) {
-            return ResponseEntity.notFound().build();
-        }
+        if (persona == null) return ResponseEntity.notFound().build();
+
         personaService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    // =========================
-    //  MANEJO DE ERRORES
-    // =========================
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleException(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    private Persona toEntity(PersonaRequestDTO dto) {
+        Persona p = new Persona();
+        p.setNombre(dto.getNombre());
+        p.setApellido(dto.getApellido());
+        p.setCedula(dto.getCedula());
+        p.setEmail(dto.getEmail());
+        p.setCelular(dto.getCelular());
+        p.setCarrera(dto.getCarrera());
+        p.setInsti(dto.getInsti());
+        return p;
+    }
+
+    private PersonaResponseDTO toResponse(Persona p) {
+        return new PersonaResponseDTO(
+                p.getIdPersona(),
+                p.getNombre(),
+                p.getApellido(),
+                p.getCedula(),
+                p.getEmail(),
+                p.getCelular(),
+                p.getCarrera(),
+                p.getInsti()
+        );
     }
 }

@@ -37,10 +37,10 @@ public class PersonaServiceImplement implements IPersonaService{
     }
 @Override
   public Persona save(Persona persona) {
-//        // Verificar si ya existe una persona con la misma cédula
-//        if (personaDao.existsByCedula(persona.getCedula())) {
-//            throw new IllegalArgumentException("La persona ya está registrada.");
-//        }
+        // Verificar si ya existe una persona con la misma cédula
+        if (personaDao.existsByCedula(persona.getCedula())) {
+            throw new IllegalArgumentException("La persona ya está registrada.");
+        }
         return personaDao.save(persona);
     }
 }
