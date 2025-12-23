@@ -15,43 +15,53 @@ import java.util.Map;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    // Definimos un token secreto para validación manual (Simulando un JWT)
+    private static final String TOKEN_VALIDO = "m5a-registro-2025-secret-key";
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, 
                                     HttpServletResponse response, 
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // 1. Obtener el header Authorization
-        String authHeader = request.getHeader("Authorization");
-
-        // 2. Excluir rutas de Swagger y OpenAPI de la validación del token
         String path = request.getRequestURI();
+        
+        // 1. EXCLUIR SOLO SWAGGER (Aquí quitamos "/api/")
         if (path.contains("/v3/api-docs") || 
             path.contains("/swagger-ui") || 
-            path.contains("/swagger-resources") || 
-            path.equals("/swagger-ui.html") || 
-            path.contains("/api/")) {
-
+            path.equals("/swagger-ui.html")) {
             filterChain.doFilter(request, response);
-            return; // Dejamos pasar sin revisar el token
+            return;
         }
 
-        // 3. Validación del Token para el resto de rutas (Tu lógica actual)
+        // 2. OBTENER HEADER
+        String authHeader = request.getHeader("Authorization");
+
+        // 3. VALIDACIÓN LÓGICA DEL TOKEN
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            enviarErrorJson(response, "Token de seguridad faltante o inválido", HttpServletResponse.SC_UNAUTHORIZED);
-            return; 
+            enviarErrorJson(response, "Falta el encabezado Authorization: Bearer", HttpServletResponse.SC_UNAUTHORIZED);
+            return;
         }
+
+        // Extraemos el valor después de "Bearer "
+        String tokenRecibido = authHeader.substring(7);
+
+        // 4. VALIDACIÓN DE SEGURIDAD (Aquí comparamos contra nuestro token fijo)
+        if (!tokenRecibido.equals(TOKEN_VALIDO)) {
+            enviarErrorJson(response, "Token inválido o expirado. Acceso denegado.", HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+
+        // Si el token es idéntico al que definimos, dejamos pasar
+        filterChain.doFilter(request, response);
     }
 
-  private void enviarErrorJson(HttpServletResponse response, String mensaje, int status) throws IOException {
-    response.setStatus(status);
-    // Agregamos el charset UTF-8 para que se vean bien las tildes
-    response.setContentType("application/json;charset=UTF-8");
-
-    Map<String, Object> errorBody = new HashMap<>();
-    errorBody.put("error", mensaje);
-    errorBody.put("status", status);
-
-    ObjectMapper mapper = new ObjectMapper();
-    response.getWriter().write(mapper.writeValueAsString(errorBody));
-}
+    private void enviarErrorJson(HttpServletResponse response, String mensaje, int status) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json;charset=UTF-8");
+        Map<String, Object> errorBody = new HashMap<>();
+        errorBody.put("error", mensaje);
+        errorBody.put("status", status);
+        ObjectMapper mapper = new ObjectMapper();
+        response.getWriter().write(mapper.writeValueAsString(errorBody));
+    }
 }
