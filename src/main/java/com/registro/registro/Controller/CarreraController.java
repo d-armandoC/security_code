@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@CrossOrigin(origins = {"${frontend.url}"})
 @RestController
 @RequestMapping("/api")
 public class CarreraController {

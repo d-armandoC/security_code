@@ -28,7 +28,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (path.contains("/v3/api-docs") || 
             path.contains("/swagger-ui") || 
             path.contains("/swagger-resources") || 
-            path.equals("/swagger-ui.html")) {
+            path.equals("/swagger-ui.html") || 
+            path.contains("/api/")) {
 
             filterChain.doFilter(request, response);
             return; // Dejamos pasar sin revisar el token

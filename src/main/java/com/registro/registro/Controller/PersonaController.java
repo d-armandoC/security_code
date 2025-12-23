@@ -5,6 +5,9 @@ import com.registro.registro.Service.IPersonaService;
 import com.registro.registro.dto.request.PersonaRequestDTO;
 import com.registro.registro.dto.response.PersonaResponseDTO;
 
+// IMPORTANTE: Estas librerías habilitan el candado en el controlador
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import org.springframework.http.HttpStatus;
@@ -18,6 +21,10 @@ import static java.util.stream.Collectors.toList;
 @RestController
 @RequestMapping("/api")
 @Validated
+// 1. Vincula este controlador con el esquema "bearerAuth" definido en SecurityConfig
+@SecurityRequirement(name = "bearerAuth")
+// 2. Etiqueta para organizar Swagger
+@Tag(name = "Persona", description = "Gestión de registros de personas")
 public class PersonaController {
 
     private final IPersonaService personaService;
@@ -51,18 +58,12 @@ public class PersonaController {
 
     @PutMapping("/persona/{id}")
     public ResponseEntity<PersonaResponseDTO> actualizar(@PathVariable @Min(1) Long id,
-                                                        @Valid @RequestBody PersonaRequestDTO dto) {
+                                                         @Valid @RequestBody PersonaRequestDTO dto) {
 
         Persona existente = personaService.findById(id);
         if (existente == null) return ResponseEntity.notFound().build();
 
-        existente.setNombre(dto.getNombre());
-        existente.setApellido(dto.getApellido());
-        existente.setCedula(dto.getCedula());
-        existente.setEmail(dto.getEmail());
-        existente.setCelular(dto.getCelular());
-        existente.setCarrera(dto.getCarrera());
-        existente.setInsti(dto.getInsti());
+        actualizarCampos(existente, dto);
 
         Persona guardada = personaService.save(existente);
         return ResponseEntity.ok(toResponse(guardada));
@@ -77,8 +78,9 @@ public class PersonaController {
         return ResponseEntity.noContent().build();
     }
 
-    private Persona toEntity(PersonaRequestDTO dto) {
-        Persona p = new Persona();
+    // --- Métodos de apoyo para limpieza de código ---
+
+    private void actualizarCampos(Persona p, PersonaRequestDTO dto) {
         p.setNombre(dto.getNombre());
         p.setApellido(dto.getApellido());
         p.setCedula(dto.getCedula());
@@ -86,6 +88,11 @@ public class PersonaController {
         p.setCelular(dto.getCelular());
         p.setCarrera(dto.getCarrera());
         p.setInsti(dto.getInsti());
+    }
+
+    private Persona toEntity(PersonaRequestDTO dto) {
+        Persona p = new Persona();
+        actualizarCampos(p, dto);
         return p;
     }
 

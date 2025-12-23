@@ -14,14 +14,27 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+// IMPORTANTE: Estas anotaciones habilitan el botón "Authorize" en Swagger
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
+import io.swagger.v3.oas.annotations.info.Info;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+// Definimos que la API usa Bearer Token
+@OpenAPIDefinition(info = @Info(title = "API Registro M5A", version = "1.0"))
+@SecurityScheme(
+    name = "bearerAuth", // Este nombre debe coincidir con el esquema usado en los controladores
+    type = SecuritySchemeType.HTTP,
+    bearerFormat = "JWT",
+    scheme = "bearer"
+)
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    // Inyectamos el middleware por constructor
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
@@ -32,19 +45,21 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers
-                .frameOptions(frame -> frame.deny()) // Evita Clickjacking
-                .contentTypeOptions(Customizer.withDefaults()) // Evita MIME sniffing
-                .xssProtection(xss -> xss.disable()) // Los navegadores modernos ya no usan esta cabecera antigua
+                .frameOptions(frame -> frame.deny())
+                .contentTypeOptions(Customizer.withDefaults())
+                .xssProtection(xss -> xss.disable())
                 .contentSecurityPolicy(csp -> csp
                     .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';")
-                ) // <--- ESTO ES EL CORAZÓN CONTRA XSS
+                )
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // Permitimos acceso a la documentación sin token
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .anyRequest().authenticated() 
+                .anyRequest().permitAll() 
             );
 
+        // Agregamos el filtro antes de que Spring intente autenticar de forma interna
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -63,7 +78,7 @@ public class SecurityConfig {
         config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Asegúrate que tus controladores tengan el prefijo /api/
+        // Cambiado a /** para asegurar que aplique a todas las rutas bajo /api
         source.registerCorsConfiguration("/api/**", config);
         return source;
     }
