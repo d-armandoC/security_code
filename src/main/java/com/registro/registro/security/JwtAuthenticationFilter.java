@@ -15,9 +15,11 @@ import java.util.Map;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    // Definimos un token secreto para validación manual (Simulando un JWT)
-    private static final String TOKEN_VALIDO = "m5a-registro-2025-secret-key";
+    private final JwtService jwtService; // Inyectamos el servicio
 
+    public JwtAuthenticationFilter(JwtService jwtService) {
+            this.jwtService = jwtService;
+        }
     @Override
     protected void doFilterInternal(HttpServletRequest request, 
                                     HttpServletResponse response, 
@@ -36,7 +38,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 2. OBTENER HEADER
         String authHeader = request.getHeader("Authorization");
 
-        // 3. VALIDACIÓN LÓGICA DEL TOKEN
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             enviarErrorJson(response, "Falta el encabezado Authorization: Bearer", HttpServletResponse.SC_UNAUTHORIZED);
             return;
@@ -45,8 +46,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Extraemos el valor después de "Bearer "
         String tokenRecibido = authHeader.substring(7);
 
-        // 4. VALIDACIÓN DE SEGURIDAD (Aquí comparamos contra nuestro token fijo)
-        if (!tokenRecibido.equals(TOKEN_VALIDO)) {
+        // 3. VALIDACIÓN USANDO EL SERVICIO (Criptográfica y Dinámica)
+        if (!jwtService.isTokenValid(tokenRecibido)) {
             enviarErrorJson(response, "Token inválido o expirado. Acceso denegado.", HttpServletResponse.SC_FORBIDDEN);
             return;
         }
